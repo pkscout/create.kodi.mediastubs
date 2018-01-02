@@ -1,7 +1,7 @@
 # *  Credits:
 # *
-# *  v.1.0.0~beta4
-# *  original Trigger Kodi Scan code by pkscout
+# *  v.0.1.0
+# *  original Create Kodi Media Stubs code by pkscout
 
 import atexit, argparse, datetime, os, random, sys, time
 import data.config as config
