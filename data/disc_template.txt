@@ -1,0 +1,4 @@
+<discstub>
+  <title>[TITLE]</title>
+  <message>[MESSAGE]</message>
+</discstub>
