@@ -47,19 +47,23 @@ class Main:
         lw.log( loglines )        
 
 
-    def _init_vars( self ):
-        self.DATAROOT = os.path.join( p_folderpath, 'data' )
-
-
     def _parse_argv( self ):
         parser = argparse.ArgumentParser()
-        parser.add_argument( "-s", "--series", required=True, help="the name of the series" )
-        parser.add_argument( "-e", "--seasons", required=True, help="comma separated list of the seasons to create" )
-        parser.add_argument( "-p", "--episodes", required=True, help="comma separated list of the number of episodes in each season" )
-        parser.add_argument( "-t", "--title", required=True, help="title for the Kodi dialog box" )
-        parser.add_argument( "-m", "--msg", required=True, help="message used in the Kodi dialog box" )
-        parser.add_argument( "-y", "--type", required=True, help="the media source for the stub (must be a valid Kodi type)" )
+        parser.add_argument( "-s", "--series", required=True, help="the name of the series (required)" )
+        parser.add_argument( "-e", "--seasons", required=True, help="comma separated list of the seasons to create (required)" )
+        parser.add_argument( "-p", "--episodes", required=True, help="comma separated list of the number of episodes in each season (required)" )
+        parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )        
+        parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
+        parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box" )
+        parser.add_argument( "-y", "--type", help="the media source for the stub (must be a valid Kodi type)" )
         self.ARGS = parser.parse_args()
+
+
+    def _init_vars( self ):
+        self.DATAROOT = os.path.join( p_folderpath, 'data' )
+        self.ILLEGALCHARS = list( config.Get( 'illegalchars' ) )
+        self.ILLEGALREPLACE = config.Get( 'illegalreplace' )
+        self.ENDREPLACE = config.Get( 'endreplace' )
 
 
     def _add_leading_zeros( self, num ):
@@ -70,37 +74,76 @@ class Main:
             return str( num )
 
 
-    def _get_file_text( self ):
-        replacement_dic = {'[TITLE]' : self.ARGS.title,
-                           '[MESSAGE]' : self.ARGS.msg}
-        loglines, template = readFile( os.path.join( self.DATAROOT, 'disc_template.txt' ) )
-        lw.log (loglines )
-        return replaceWords( template, replacement_dic )
-
-
     def _create_media_stubs( self ):
-        series_name = self.ARGS.series
+        series_name = self._set_safe_name( self.ARGS.series )
         season_list = self.ARGS.seasons.split( ',' )
         episode_list = self.ARGS.episodes.split( ',' )
+        if self.ARGS.dates:
+            date_list = self.ARGS.dates.split( ',' )
+        else:
+            date_list = None
         series_root = os.path.join( self.DATAROOT, series_name )
-        stub_type = self.ARGS.type
+        if self.ARGS.type:
+            stub_type = '.' + self.ARGS.type
+        else:
+           stub_type = ''
         file_text = self._get_file_text()
-        el_ref = 0
+        ref = 0
         success, log_lines = checkPath( series_root )
         lw.log( log_lines )
         for season in season_list:
             season_num = self._add_leading_zeros( season )
             try:
-                max_eps = int( episode_list[el_ref] ) + 1
+                max_eps = int( episode_list[ref] ) + 1
             except IndexError:
                 break
             for e in range( 1, max_eps):
                 ep_num = self._add_leading_zeros( e )
-                file_name = '%s.S%sE%s.%s.disc' % (series_name, season_num, ep_num, stub_type )
+                file_name = '%s.S%sE%s%s.disc' % (series_name, season_num, ep_num, stub_type )
                 file_path = os.path.join( series_root, file_name )
                 success, loglines = writeFile( file_text, file_path )
                 lw.log( loglines )
-            el_ref = el_ref + 1
+                if success and date_list:
+                    t = time.mktime(time.strptime(date_list[ref], config.Get( 'dateformat' )))
+                    os.utime(file_path, (t,t))
+            ref = ref + 1
+
+
+    def _get_file_text( self ):
+        if self.ARGS.title:
+            title = self.ARGS.title
+        else:
+            title = ''
+        if self.ARGS.msg:
+            message = self.ARGS.msg
+        else:
+            message = ''
+        if title or message:
+            replacement_dic = {'[TITLE]' : title,
+                               '[MESSAGE]' : message}
+            loglines, template = readFile( os.path.join( self.DATAROOT, 'disc_template.txt' ) )
+            lw.log (loglines )
+            return replaceWords( template, replacement_dic )
+        else:
+            return ''
+
+
+    def _remove_trailing_dot( self, thename ):
+        if thename[-1] == '.' and len( thename ) > 1 and self.ENDREPLACE is not '.':
+            return self._remove_trailing_dot( thename[:-1] + self.ENDREPLACE )
+        else:
+            return thename
+
+
+    def _set_safe_name( self, name ):
+        s_name = ''
+        lw.log( ['the illegal characters are ', self.ILLEGALCHARS, 'the replacement is ' + self.ILLEGALREPLACE] )
+        for c in list( self._remove_trailing_dot( name ) ):
+            if c in self.ILLEGALCHARS:
+                s_name = s_name + self.ILLEGALREPLACE
+            else:
+                s_name = s_name + c  
+        return s_name
 
 
 if ( __name__ == "__main__" ):
