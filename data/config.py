@@ -1,4 +1,8 @@
-defaults = { 'aborttime': 30,
+defaults = { 'illegalchars': '<>:"/\|?* ',
+             'illegalreplace': '.',
+             'endreplace': '',
+             'dateformat': '%Y-%m-%d',
+             'aborttime': 30,
              'logbackups': 1,
              'debug': False }
 
