@@ -4,7 +4,8 @@
 # *  original Create Kodi Media Stubs code by pkscout
 
 import atexit, argparse, datetime, os, random, sys, time
-import data.config as config
+import resources.config as config
+from urllib.parse import urlencode, quote_plus
 from resources.common.xlogger import Logger
 from resources.common.fileops import deleteFile, readFile, writeFile, checkPath
 from resources.common.transforms import replaceWords
@@ -56,6 +57,7 @@ class Main:
         parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
         parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box" )
         parser.add_argument( "-y", "--type", help="the media source for the stub (must be a valid Kodi type)" )
+        parser.add_argument( "-r", "--streamfile", action="store_true", help="output as a stream file instead of a media stub")
         self.ARGS = parser.parse_args()
 
 
@@ -64,7 +66,7 @@ class Main:
         self.ILLEGALCHARS = list( config.Get( 'illegalchars' ) )
         self.ILLEGALREPLACE = config.Get( 'illegalreplace' )
         self.ENDREPLACE = config.Get( 'endreplace' )
-
+            
 
     def _add_leading_zeros( self, num ):
         num = int( num )
@@ -99,9 +101,13 @@ class Main:
                 break
             for e in range( 1, max_eps):
                 ep_num = self._add_leading_zeros( e )
-                file_name = '%s.S%sE%s%s.disc' % (series_name, season_num, ep_num, stub_type )
+                if self.ARGS.streamfile:
+                    ext = 'strm'
+                else:
+                    ext = 'disc'
+                file_name = '%s.S%sE%s%s.%s' % (series_name, season_num, ep_num, stub_type, ext )
                 file_path = os.path.join( series_root, file_name )
-                success, loglines = writeFile( file_text, file_path )
+                success, loglines = writeFile( file_text, file_path, 'w' )
                 lw.log( loglines )
                 if success and date_list:
                     t = time.mktime(time.strptime(date_list[ref], config.Get( 'dateformat' )))
@@ -119,11 +125,14 @@ class Main:
         else:
             message = ''
         if title or message:
-            replacement_dic = {'[TITLE]' : title,
-                               '[MESSAGE]' : message}
-            loglines, template = readFile( os.path.join( self.DATAROOT, 'disc_template.txt' ) )
-            lw.log (loglines )
-            return replaceWords( template, replacement_dic )
+            if self.ARGS.streamfile:
+                return 'plugin://plugin.whereareyou?empty=pad&%s' % urlencode( {'title':title, 'message':message}, quote_via=quote_plus )
+            else:
+                replacement_dic = {'[TITLE]' : title,
+                                   '[MESSAGE]' : message}
+                loglines, template = readFile( os.path.join( self.DATAROOT, 'disc_template.txt' ) )
+                lw.log (loglines )
+                return replaceWords( template, replacement_dic )
         else:
             return ''
 

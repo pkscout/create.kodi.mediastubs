@@ -1,4 +1,4 @@
-# v.0.4.4
+# v.0.5.0
 
 import shutil, time
 try:
@@ -26,6 +26,7 @@ else:
     _exists = os.path.exists
     _delete = os.remove
     _copy   = shutil.copyfile
+
 
 
 def checkPath( path, create=True ):
@@ -106,6 +107,14 @@ def moveFile( src, dst ):
     return success, log_lines + cp_loglines + dl_loglines
 
 
+def osPathFromString( spath, sep='/' ):
+    pathlist = spath.split( sep )
+    if spath.startswith( sep ):
+        pathlist.insert( 0, os.sep )
+        pathlist[2] = pathlist[2] + os.sep
+    return os.path.join(*pathlist)
+
+
 def popenWithTimeout( command, timeout ):
     log_lines = []
     log_lines.append( 'running command ' + command)
@@ -132,13 +141,16 @@ def popenWithTimeout( command, timeout ):
         return True, log_lines
 
 
-def readFile( filename ):
+def readFile( filename, encoding='' ):
     log_lines = []
     if _exists( filename ):
         try:
             thefile = xbmcvfs.File( filename, 'r' )
         except:
-            thefile = open( filename, 'r' )
+            if encoding:
+                thefile = open( filename, 'r', encoding=encoding )
+            else:
+                thefile = open( filename, 'r' )
         try:
             data = thefile.read()
             thefile.close()
