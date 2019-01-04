@@ -1,2 +1,5 @@
+v.0.2.0
+- added support for creating stub files for movies
+
 v.0.1.0
 - initial code
