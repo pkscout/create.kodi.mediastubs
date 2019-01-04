@@ -1,6 +1,7 @@
 v.0.2.0
 - added support for creating stub files for movies
 - added support to define a root video directory
+- added ability to add files based on date and a list of dicts in the settings file
 
 v.0.1.0
 - initial code
