@@ -1,5 +1,6 @@
 v.0.2.0
 - added support for creating stub files for movies
+- added support to define a root video directory
 
 v.0.1.0
 - initial code
