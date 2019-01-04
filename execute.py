@@ -3,7 +3,8 @@
 # *  v.0.2.0
 # *  original Create Kodi Media Stubs code by pkscout
 
-import atexit, argparse, datetime, os, random, sys, time
+import atexit, argparse, os, random, sys, time
+from datetime import datetime, date
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
 from resources.common.xlogger import Logger
@@ -43,7 +44,7 @@ class Main:
                 lw.log( [err_str] )
                 sys.exit( err_str )
         lw.log( ['setting PID file'] )
-        success, loglines = writeFile( pid, pidfile )
+        success, loglines = writeFile( pid, pidfile, 'w' )
         lw.log( loglines )        
 
 
@@ -87,33 +88,47 @@ class Main:
 
 
     def _create_stubs( self ):
-        video_name = self._set_safe_name( self.ARGS.name )
-        video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-        try:
-            season_list = self.ARGS.seasons.split( ',' )
-            episode_list = self.ARGS.episodes.split( ',' )
-        except AttributeError as e:
-            video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
-            season_list = []
-            episode_list = []
-        if self.ARGS.dates:
-            date_list = self.ARGS.dates.split( ',' )
-        else:
-            date_list = None
         if self.ARGS.type:
             media_type = '.' + self.ARGS.type
         else:
            media_type = ''
-        file_text = self._get_file_text()
-        success, log_lines = checkPath( video_path )
-        lw.log( log_lines )
         if self.ARGS.streamfile:
             ext = 'strm'
         else:
             ext = 'disc'
         if self.ARGS.fromsettings:
-            pass
+            for video in config.Get( 'videos' ):
+                lw.log( ['checking settings date %s against today %s' % (video.get( 'date' ), date.today().strftime( config.Get( 'dateformat' ) ))] )
+                if video.get( 'date' ) == date.today().strftime( config.Get( 'dateformat' ) ):
+                    file_text = self._get_file_text( video.get( 'title' ), video.get( 'msg' ))
+                    video_name = self._set_safe_name( video.get( 'name' ) )
+                    if video.get( 'episode' ):
+                        video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+                        file_name = '%s.%s.%s' % (video_name, video.get( 'episode' ), ext)                                      
+                    else:
+                        video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
+                        file_name = '%s.%s' % (video_name, ext)
+                    success, loglines = checkPath( video_path )
+                    lw.log( loglines )
+                    success, loglines = writeFile( file_text, os.path.join( video_path, file_name ), 'w' )
+                    lw.log( loglines )
         else:
+            file_text = self._get_file_text()
+            video_name = self._set_safe_name( self.ARGS.name )
+            video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+            success, loglines = checkPath( video_path )
+            lw.log( loglines )
+            try:
+                season_list = self.ARGS.seasons.split( ',' )
+                episode_list = self.ARGS.episodes.split( ',' )
+            except AttributeError as e:
+                video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
+                season_list = []
+                episode_list = []
+            if self.ARGS.dates:
+                date_list = self.ARGS.dates.split( ',' )
+            else:
+                date_list = None
             ref = 0
             for season in season_list:
                 season_num = self._add_leading_zeros( season )
@@ -138,14 +153,15 @@ class Main:
                 lw.log( loglines )
 
 
-    def _get_file_text( self ):
-        if self.TITLE or self.MSG:
-            if self.ARGS.streamfile:
-                return 'plugin://plugin.whereareyou?empty=pad&%s' % urlencode( {'title':self.TITLE, 'message':self.MSG}, quote_via=quote_plus )
-            else:
-                return '<discstub>\r    <title>%s</title>\r    <message>%s</message>\r</discstub>' % (self.TITLE, self.MSG)
+    def _get_file_text( self, title='', msg='' ):
+        if not title:
+            title = self.TITLE
+        if not msg:
+            msg = self.MSG
+        if self.ARGS.streamfile:
+            return 'plugin://plugin.whereareyou?empty=pad&%s' % urlencode( {'title':title, 'message':msg}, quote_via=quote_plus )
         else:
-            return ''
+            return '<discstub>\r    <title>%s</title>\r    <message>%s</message>\r</discstub>' % (title, msg)
 
 
     def _remove_trailing_dot( self, thename ):

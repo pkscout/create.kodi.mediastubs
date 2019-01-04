@@ -7,6 +7,7 @@ defaults = { 'illegalchars': '<>:"/\|?* ',
              'rootpath': None,
              'tvroot': 'TV',
              'movieroot': 'Movies',
+             'videos': [],
              'aborttime': 30,
              'logbackups': 1,
              'debug': False }
