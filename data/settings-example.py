@@ -21,7 +21,7 @@ msg = 'This video is available from a streaming service on another device'
 rootpath = None
 
 #the name of the directory where the TV Shows are stored
-tvroot = 'TV'
+tvroot = 'TVShows'
 
 #the name of the directory where Movies are stored
 movieroot = 'Movies'
