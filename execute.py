@@ -1,6 +1,6 @@
 # *  Credits:
 # *
-# *  v.0.2.0
+# *  v.0.3.0
 # *  original Create Kodi Media Stubs code by pkscout
 
 import atexit, argparse, os, random, sys, time
