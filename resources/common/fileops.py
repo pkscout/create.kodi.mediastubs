@@ -1,17 +1,19 @@
-# v.0.5.0
+# v.0.6.1
 
-import shutil, time
+import os, re, shutil, time
+try:
+    _range = range
+except NameError:
+    _range = xrange
 try:
     import subprocess
     hasSubprocess = True
 except:
-    import os
     hasSubprocess = False
 try:
-    import xbmcvfs
+    from kodi_six import xbmcvfs
     isXBMC = True
 except:
-    import os
     isXBMC= False
 
 if isXBMC:
@@ -26,7 +28,6 @@ else:
     _exists = os.path.exists
     _delete = os.remove
     _copy   = shutil.copyfile
-
 
 
 def checkPath( path, create=True ):
@@ -71,12 +72,24 @@ def deleteFolder( src, type='folder' ):
     log_lines = []
     if _exists( src ):
         if type == 'folder':
+            #in Mac OSX the .DS_Store file, if present, will block a folder from being deleted, so delete the file
+            try:
+                _delete( os.path.join( src, '.DS_Store' ) )
+            except IOError:
+                log_lines.append( 'unable to delete .DS_Store file' )
+            except Exception as e:
+                log_lines.append( 'unknown error while attempting to delete .DS_Store file' )
+                log_lines.append( e )
             _action = _rmdir
         else:
             _action = _delete
         try:
             log_lines.append( 'deleting %s %s' % (type, src) )
-            _action( src )
+            if isXBMC:
+                if not _action( src ):
+                    raise IOError( 'unable to delete item' )
+            else:
+                _action( src )                
         except IOError:
             log_lines.append( 'unable to delete %s' % src )
             return False, log_lines
@@ -107,12 +120,16 @@ def moveFile( src, dst ):
     return success, log_lines + cp_loglines + dl_loglines
 
 
-def osPathFromString( spath, sep='/' ):
-    pathlist = spath.split( sep )
-    if spath.startswith( sep ):
-        pathlist.insert( 0, os.sep )
-        pathlist[2] = pathlist[2] + os.sep
-    return os.path.join(*pathlist)
+def atoi( text ):
+    return int(text) if text.isdigit() else text
+
+
+def naturalKeys( text ):
+    '''
+    alist.sort( key=naturalKeys ) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    '''
+    return [ atoi( c ) for c in re.split( r'(\d+)', text ) ]
 
 
 def popenWithTimeout( command, timeout ):
@@ -128,7 +145,7 @@ def popenWithTimeout( command, timeout ):
             log_lines.append( 'unknown error while attempting to run %s' % command )
             log_lines.append( e )
             return False, log_lines
-        for t in xrange( timeout * 4 ):
+        for t in _range( timeout * 4 ):
             time.sleep( 0.25 )
             if p.poll() is not None:
                 return p.communicate(), log_lines
@@ -141,16 +158,13 @@ def popenWithTimeout( command, timeout ):
         return True, log_lines
 
 
-def readFile( filename, encoding='' ):
+def readFile( filename ):
     log_lines = []
     if _exists( filename ):
         try:
             thefile = xbmcvfs.File( filename, 'r' )
         except:
-            if encoding:
-                thefile = open( filename, 'r', encoding=encoding )
-            else:
-                thefile = open( filename, 'r' )
+            thefile = open( filename, 'r' )
         try:
             data = thefile.read()
             thefile.close()
