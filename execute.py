@@ -7,12 +7,9 @@ import atexit, argparse, os, random, sys, time
 from datetime import datetime, date
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
-from resources.common.xlogger import Logger
-from resources.common.fileops import deleteFile, writeFile, checkPath
-if sys.version_info < (3, 0):
-    from ConfigParser import *
-else:
-    from configparser import *
+from resources.lib.xlogger import Logger
+from resources.lib.fileops import deleteFile, writeFile, checkPath
+from configparser import *
 
 p_folderpath, p_filename = os.path.split( os.path.realpath(__file__) )
 lw = Logger( logfile = os.path.join( p_folderpath, 'data', 'logfile.log' ),
