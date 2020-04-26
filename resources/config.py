@@ -9,7 +9,7 @@ defaults = { 'illegalchars': '<>:"/\|?* ',
              'movieroot': 'Movies',
              'videos': [],
              'aborttime': 30,
-             'logbackups': 1,
+             'logbackups': 7,
              'debug': False }
 
 try:
