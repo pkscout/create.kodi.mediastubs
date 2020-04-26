@@ -51,14 +51,15 @@ class Main:
 
     def _parse_argv( self ):
         parser = argparse.ArgumentParser()
-        parser.add_argument( "-n", "--name", help="the name of the series or movie", required=True )
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument( "-n", "--name", help="the name of the series or movie" )
+        group.add_argument( "-f", "--fromsettings", action="store_true", help="generate file based on airdate of episodes in settings file")
         parser.add_argument( "-s", "--seasons", help="comma separated list of the seasons to create" )
         parser.add_argument( "-e", "--episodes", help="comma separated list of the number of episodes in each season" )
         parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )
         parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
         parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box" )
         parser.add_argument( "-y", "--type", help="the media type for the stub (must be a valid Kodi type)" )
-        parser.add_argument( "-f", "--fromsettings", action="store_true", help="generate file based on airdate of episodes in settings file")
         parser.add_argument( "-r", "--streamfile", action="store_true", help="output as a stream file instead of a media stub")
         self.ARGS = parser.parse_args()
 
