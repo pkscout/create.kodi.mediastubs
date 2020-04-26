@@ -1,4 +1,4 @@
-# v.0.8.0
+# v.0.9.0
 
 import os, re
 try:
@@ -130,6 +130,14 @@ def naturalKeys( thelist ):
     http://nedbatchelder.com/blog/200712/human_sorting.html
     '''
     return [ atoi( c ) for c in re.split( r'(\d+)', thelist ) ]
+
+
+def osPathFromString( spath, sep='/' ):
+    pathlist = spath.split( sep )
+    if spath.startswith( sep ):
+        pathlist.insert( 0, os.sep )
+        pathlist[2] = pathlist[2] + os.sep
+    return os.path.join(*pathlist)
 
 
 def readFile( filename ):
