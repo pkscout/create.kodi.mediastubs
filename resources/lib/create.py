@@ -4,7 +4,7 @@
 # *  original Create Kodi Media Stubs code by pkscout
 
 import atexit, argparse, os, random, sys, time
-from datetime import datetime, date
+from datetime import date
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
 from resources.lib.xlogger import Logger
@@ -32,8 +32,8 @@ class Main:
         self._parse_argv()
         self._init_vars()
         self._create_stubs()
-        
-                
+
+
     def _setPID( self ):
         basetime = time.time()
         while os.path.isfile( pidfile ):
@@ -44,7 +44,7 @@ class Main:
                 sys.exit( err_str )
         lw.log( ['setting PID file'] )
         success, loglines = writeFile( pid, pidfile, 'w' )
-        lw.log( loglines )        
+        lw.log( loglines )
 
 
     def _parse_argv( self ):
@@ -52,7 +52,7 @@ class Main:
         parser.add_argument( "-n", "--name", help="the name of the series or movie" )
         parser.add_argument( "-s", "--seasons", help="comma separated list of the seasons to create" )
         parser.add_argument( "-e", "--episodes", help="comma separated list of the number of episodes in each season" )
-        parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )        
+        parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )
         parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
         parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box" )
         parser.add_argument( "-y", "--type", help="the media type for the stub (must be a valid Kodi type)" )
@@ -76,7 +76,7 @@ class Main:
             self.MSG = self.ARGS.msg
         else:
             self.MSG = config.Get( 'msg' )
-            
+
 
     def _add_leading_zeros( self, num ):
         num = int( num )
@@ -103,7 +103,7 @@ class Main:
                     video_name = self._set_safe_name( video.get( 'name' ) )
                     if video.get( 'episode' ):
                         video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-                        file_name = '%s.%s.%s' % (video_name, video.get( 'episode' ), ext)                                      
+                        file_name = '%s.%s.%s' % (video_name, video.get( 'episode' ), ext)
                     else:
                         video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
                         file_name = '%s.%s' % (video_name, ext)
@@ -177,5 +177,5 @@ class Main:
             if c in self.ILLEGALCHARS:
                 s_name = s_name + self.ILLEGALREPLACE
             else:
-                s_name = s_name + c  
+                s_name = s_name + c
         return s_name

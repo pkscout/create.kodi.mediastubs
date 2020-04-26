@@ -27,10 +27,10 @@ tvroot = 'TVShows'
 movieroot = 'Movies'
 
 #a list of videos to be parsed when -f flag is used and created if date matches today
-videos = [ 
+videos = [
           {'date':'2019-01-03', 'name':'Daredevil', 'episode':'S01E01', 'title':'On Netflix', 'msg':'This episode is available via the Netflix app on the TV' },
           {'date':'2019-01-03', 'name':'Daredevil', 'episode':'S01E02' },
-          {'date':'2019-01-03', 'name':'Toy Story' }          
+          {'date':'2019-01-03', 'name':'Toy Story' }
          ]
 
 #if another instance of script is running, amount of time (in seconds) to wait before giving up
