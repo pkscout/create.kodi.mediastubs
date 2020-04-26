@@ -12,7 +12,7 @@ from resources.lib.fileops import checkPath, deleteFile, osPathFromString, write
 from configparser import *
 
 p_folderpath, p_filename = os.path.split( sys.argv[0] )
-logpath = os.path.join( p_folderpath, 'data', 'logs' )
+logpath = os.path.join( p_folderpath, 'data', 'logs', '' )
 checkPath( logpath )
 lw = Logger( logfile = os.path.join( logpath, 'logfile.log' ), numbackups = config.Get( 'logbackups' ), logdebug = str( config.Get( 'debug' ) ) )
 
@@ -24,6 +24,7 @@ def _deletePID():
 pid = str(os.getpid())
 pidfile = os.path.join( p_folderpath, 'data', 'create.pid' )
 atexit.register( _deletePID )
+
 
 
 class Main:
