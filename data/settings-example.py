@@ -17,7 +17,7 @@ title = 'Available Streaming'
 msg = 'This video is available from a streaming service on another device'
 
 #the root of the video source for Kodi (minus the TV Show and Movie directories)
-#note that for Windows you need to put the path in the C:\\Users\\Public\\Videos'
+#regardless of platform, the path should be POSIX style. So on Windows it would be /C:/Path/to/video/source
 rootpath = None
 
 #the name of the directory where the TV Shows are stored

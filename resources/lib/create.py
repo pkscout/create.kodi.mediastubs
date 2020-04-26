@@ -8,12 +8,13 @@ from datetime import date
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
 from resources.lib.xlogger import Logger
-from resources.lib.fileops import deleteFile, writeFile, checkPath
+from resources.lib.fileops import checkPath, deleteFile, osPathFromString, writeFile
 from configparser import *
 
 p_folderpath, p_filename = os.path.split( sys.argv[0] )
-lw = Logger( logfile = os.path.join( p_folderpath, 'data', 'logfile.log' ),
-             numbackups = config.Get( 'logbackups' ), logdebug = str( config.Get( 'debug' ) ) )
+logpath = os.path.join( p_folderpath, 'data', 'logs' )
+checkPath( logpath )
+lw = Logger( logfile = os.path.join( logpath, 'logfile.log' ), numbackups = config.Get( 'logbackups' ), logdebug = str( config.Get( 'debug' ) ) )
 
 def _deletePID():
     success, loglines = deleteFile( pidfile )
@@ -49,7 +50,7 @@ class Main:
 
     def _parse_argv( self ):
         parser = argparse.ArgumentParser()
-        parser.add_argument( "-n", "--name", help="the name of the series or movie" )
+        parser.add_argument( "-n", "--name", help="the name of the series or movie", required=True )
         parser.add_argument( "-s", "--seasons", help="comma separated list of the seasons to create" )
         parser.add_argument( "-e", "--episodes", help="comma separated list of the number of episodes in each season" )
         parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )
@@ -63,7 +64,9 @@ class Main:
 
     def _init_vars( self ):
         self.DATAROOT = config.Get( 'rootpath' )
-        if not self.DATAROOT:
+        if self.DATAROOT:
+            self.DATAROOT = osPathFromString( self.DATAROOT )
+        else:
             self.DATAROOT = os.path.join( p_folderpath, 'data' )
         self.ILLEGALCHARS = list( config.Get( 'illegalchars' ) )
         self.ILLEGALREPLACE = config.Get( 'illegalreplace' )
