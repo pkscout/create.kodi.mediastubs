@@ -120,8 +120,6 @@ class Main:
             file_text = self._get_file_text()
             video_name = self._set_safe_name( self.ARGS.name )
             video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-            success, loglines = checkPath( video_path )
-            lw.log( loglines )
             try:
                 season_list = self.ARGS.seasons.split( ',' )
                 episode_list = self.ARGS.episodes.split( ',' )
@@ -129,6 +127,8 @@ class Main:
                 video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
                 season_list = []
                 episode_list = []
+            success, loglines = checkPath( video_path )
+            lw.log( loglines )
             if self.ARGS.dates:
                 date_list = self.ARGS.dates.split( ',' )
             else:
