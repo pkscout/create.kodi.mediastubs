@@ -1,7 +1,4 @@
-# *  Credits:
-# *
-# *  v.0.4.0
-# *  original Create Kodi Media Stubs code by pkscout
+# v.0.4.1
 
 import atexit, argparse, os, random, sys, time
 from datetime import date
@@ -14,7 +11,7 @@ from configparser import *
 p_folderpath, p_filename = os.path.split( sys.argv[0] )
 logpath = os.path.join( p_folderpath, 'data', 'logs', '' )
 checkPath( logpath )
-lw = Logger( logfile = os.path.join( logpath, 'logfile.log' ), numbackups = config.Get( 'logbackups' ), logdebug = str( config.Get( 'debug' ) ) )
+lw = Logger( logfile=os.path.join( logpath, 'logfile.log' ), numbackups=config.Get( 'logbackups' ), logdebug=config.Get( 'debug' ) )
 
 def _deletePID():
     success, loglines = deleteFile( pidfile )
