@@ -1,5 +1,5 @@
-defaults = { 'illegalchars': '<>:"/\|?* ',
-             'illegalreplace': '.',
+defaults = { 'illegalchars': '<>:"/\|?*',
+             'illegalreplace': '_',
              'endreplace': '',
              'dateformat': '%Y-%m-%d',
              'title': 'Available Streaming',

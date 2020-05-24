@@ -1,3 +1,7 @@
+v.0.5.0
+- added support for building files from TVMaze information
+- added support for matching episodes based on airdate being some number of days in the past
+
 v.0.4.1
 - fix for debug logging always being on
 

@@ -1,11 +1,12 @@
 # v.0.4.1
 
 import atexit, argparse, os, random, sys, time
-from datetime import date
+from datetime import date, timedelta
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
+from resources.lib.fileops import checkPath, deleteFile, osPathFromString, setSafeName, writeFile
+from resources.lib.url import URL
 from resources.lib.xlogger import Logger
-from resources.lib.fileops import checkPath, deleteFile, osPathFromString, writeFile
 from configparser import *
 
 p_folderpath, p_filename = os.path.split( sys.argv[0] )
@@ -18,6 +19,7 @@ def _deletePID():
     lw.log (loglines )
     lw.log( ['script stopped'], 'info' )
 
+JSONURL = URL( 'json' )
 pid = str(os.getpid())
 pidfile = os.path.join( p_folderpath, 'data', 'create.pid' )
 atexit.register( _deletePID )
@@ -49,8 +51,10 @@ class Main:
     def _parse_argv( self ):
         parser = argparse.ArgumentParser()
         group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument( "-n", "--name", help="the name of the series or movie" )
-        group.add_argument( "-f", "--fromsettings", action="store_true", help="generate file based on airdate of episodes in settings file")
+        group.add_argument( "-n", "--name", help="the name of the series/movie" )
+        group.add_argument( "-f", "--source", help="generate file based on either settings or tvmazeid")
+        parser.add_argument( "-i", "--tvmazeids", help="comma separated list of the TV Maze ID of the shows" )
+        parser.add_argument( "-l", "--lookback", help="number of days backwards in time to look for episode match" )
         parser.add_argument( "-s", "--seasons", help="comma separated list of the seasons to create" )
         parser.add_argument( "-e", "--episodes", help="comma separated list of the number of episodes in each season" )
         parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )
@@ -70,6 +74,10 @@ class Main:
         self.ILLEGALCHARS = list( config.Get( 'illegalchars' ) )
         self.ILLEGALREPLACE = config.Get( 'illegalreplace' )
         self.ENDREPLACE = config.Get( 'endreplace' )
+        if self.ARGS.dates:
+            self.DATELIST = self.ARGS.dates.split( ',' )
+        else:
+            self.DATELIST = None
         if self.ARGS.title:
             self.TITLE = self.ARGS.title
         else:
@@ -97,61 +105,119 @@ class Main:
             ext = 'strm'
         else:
             ext = 'disc'
-        if self.ARGS.fromsettings:
-            for video in config.Get( 'videos' ):
-                lw.log( ['checking settings date %s against today %s' % (video.get( 'date' ), date.today().strftime( config.Get( 'dateformat' ) ))] )
-                if video.get( 'date' ) == date.today().strftime( config.Get( 'dateformat' ) ):
-                    file_text = self._get_file_text( video.get( 'title' ), video.get( 'msg' ))
-                    video_name = self._set_safe_name( video.get( 'name' ) )
-                    if video.get( 'episode' ):
-                        video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-                        file_name = '%s.%s.%s' % (video_name, video.get( 'episode' ), ext)
-                    else:
-                        video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
-                        file_name = '%s.%s' % (video_name, ext)
-                    success, loglines = checkPath( video_path )
-                    lw.log( loglines )
-                    success, loglines = writeFile( file_text, os.path.join( video_path, file_name ), 'w' )
-                    lw.log( loglines )
+        if self.ARGS.source == 'settings':
+            self._create_stubs_from_settings( media_type, ext )
+        elif self.ARGS.source == 'tvmazeids':
+            self._create_stubs_from_tvmazeids( media_type, ext )
+        elif self.ARGS.source:
+            lw.log( ['invalid argument for source: %s' % self.ARGS.source] )
         else:
-            file_text = self._get_file_text()
-            video_name = self._set_safe_name( self.ARGS.name )
-            video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+            self._create_stubs_from_args( media_type, ext )
+
+
+    def _create_stubs_from_args( self, media_type='', ext='disc' ):
+        file_text = self._get_file_text()
+        video_name, loglines = setSafeName( self.ARGS.name, illegalchars=self.ILLEGALCHARS,
+                                            illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+        lw.log( loglines )
+        video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+        try:
+            season_list = self.ARGS.seasons.split( ',' )
+            episode_list = self.ARGS.episodes.split( ',' )
+        except AttributeError as e:
+            video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
+            season_list = []
+            episode_list = []
+        success, loglines = checkPath( video_path )
+        lw.log( loglines )
+        ref = 0
+        for season in season_list:
+            season_num = self._add_leading_zeros( season )
             try:
-                season_list = self.ARGS.seasons.split( ',' )
-                episode_list = self.ARGS.episodes.split( ',' )
-            except AttributeError as e:
-                video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
-                season_list = []
-                episode_list = []
-            success, loglines = checkPath( video_path )
-            lw.log( loglines )
-            if self.ARGS.dates:
-                date_list = self.ARGS.dates.split( ',' )
-            else:
-                date_list = None
-            ref = 0
-            for season in season_list:
-                season_num = self._add_leading_zeros( season )
-                try:
-                    max_eps = int( episode_list[ref] ) + 1
-                except IndexError:
-                    break
-                for e in range( 1, max_eps):
-                    ep_num = self._add_leading_zeros( e )
-                    file_name = '%s.S%sE%s%s.%s' % (video_name, season_num, ep_num, media_type, ext )
-                    file_path = os.path.join( video_path, file_name )
-                    success, loglines = writeFile( file_text, file_path, 'w' )
-                    lw.log( loglines )
-                    if success and date_list:
-                        t = time.mktime(time.strptime(date_list[ref], config.Get( 'dateformat' )))
-                        os.utime(file_path, (t,t))
-                ref = ref + 1
-            if not season_list:
-                file_name = '%s%s.%s' % (video_name, media_type, ext )
+                max_eps = int( episode_list[ref] ) + 1
+            except IndexError:
+                break
+            for e in range( 1, max_eps):
+                ep_num = self._add_leading_zeros( e )
+                file_name = '%s.S%sE%s%s.%s' % (video_name, season_num, ep_num, media_type, ext )
                 file_path = os.path.join( video_path, file_name )
-                success, loglines = writeFile( file_text, file_path, 'w' )
+                self._write_stub( file_path, file_text, setdate=self.DATELIST[ref] )
+            ref = ref + 1
+        if not season_list:
+            file_name = '%s%s.%s' % (video_name, media_type, ext )
+            file_path = os.path.join( video_path, file_name )
+            self._write_stub( file_path, file_text )
+
+
+    def _create_stubs_from_settings( self, media_type='', ext='disc' ):
+        for video in config.Get( 'videos' ):
+            lw.log( ['checking settings date %s against today %s' % (video.get( 'date' ), date.today().strftime( config.Get( 'dateformat' ) ))] )
+            if video.get( 'date' ) == date.today().strftime( config.Get( 'dateformat' ) ):
+                file_text = self._get_file_text( video.get( 'title' ), video.get( 'msg' ))
+                video_name, loglines = setSafeName( video.get( 'name' ), illegalchars=self.ILLEGALCHARS,
+                                                    illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
                 lw.log( loglines )
+                if video.get( 'episode' ):
+                    video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+                    file_name = '%s.%s.%s' % (video_name, video.get( 'episode' ), ext)
+                else:
+                    video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
+                    file_name = '%s.%s' % (video_name, ext)
+                success, loglines = checkPath( video_path )
+                lw.log( loglines )
+                file_path = os.path.join( video_path, file_name )
+                self._write_stub( file_path, file_text, setdate=self.DATELIST[ref] )
+
+
+    def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
+        params = { 'embed':'episodes' }
+        for tvmazeid in self.ARGS.tvmazeids.split( ',' ):
+            url = 'https://api.tvmaze.com/shows/%s' % tvmazeid
+            success, loglines, show = JSONURL.Get( url, params=params )
+            lw.log( loglines )
+            if success:
+                try:
+                    showname = show['name']
+                    episodes = show["_embedded"]['episodes']
+                except IndexError:
+                    lw.log( ['no valid show name or episode list, exiting'] )
+                    return
+                file_text = self._get_file_text()
+                video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
+                                                    illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+                lw.log( loglines )
+                video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+                success, loglines = checkPath( video_path )
+                lw.log( loglines )
+                if self.ARGS.lookback:
+                    checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
+                    checkdate = checkdateraw.strftime( config.Get( 'dateformat' ) )
+                    lw.log( ['checking for epsiode matches based on date of %s' % checkdate] )
+                for episode in episodes:
+                    if self.ARGS.lookback:
+                        if not episode.get( 'airdate' ) in checkdate:
+                            continue
+                    if self.ARGS.seasons:
+                        if not str( episode.get( 'season' ) ) in self.ARGS.seasons:
+                            continue
+                    if self.ARGS.episodes:
+                        if not str( episode.get( 'number' ) ) in self.ARGS.episodes:
+                            continue
+                    ep_name, loglines = setSafeName( episode.get( 'name' ), illegalchars=self.ILLEGALCHARS,
+                                                     illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+                    lw.log( loglines )
+                    ep_season = self._add_leading_zeros( episode.get( 'season' ) )
+                    ep_number = self._add_leading_zeros( episode.get( 'number' ) )
+                    if not ep_season and not ep_number:
+                        lw.log( ['need both season and episode number to create a valid file, exiting'] )
+                        return
+                    if ep_name:
+                        full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
+                    else:
+                        full_episode = 'S%sE%s' % (ep_season, ep_number)                
+                    file_name = '%s.%s.%s' % (video_name, full_episode, ext)
+                    file_path = os.path.join( video_path, file_name )
+                    self._write_stub( file_path, file_text, setdate=self.ARGS.dates )
 
 
     def _get_file_text( self, title='', msg='' ):
@@ -164,20 +230,10 @@ class Main:
         else:
             return '<discstub>\r    <title>%s</title>\r    <message>%s</message>\r</discstub>' % (title, msg)
 
+    def _write_stub( self, file_path, file_text, setdate='' ):
+        success, loglines = writeFile( file_text, file_path, 'w' )
+        lw.log( loglines )
+        if success and setdate:
+            t = time.mktime( time.strptime( setdate, config.Get( 'dateformat' ) ) )
+            os.utime( file_path, (t,t) )
 
-    def _remove_trailing_dot( self, thename ):
-        if thename[-1] == '.' and len( thename ) > 1 and self.ENDREPLACE is not '.':
-            return self._remove_trailing_dot( thename[:-1] + self.ENDREPLACE )
-        else:
-            return thename
-
-
-    def _set_safe_name( self, name ):
-        s_name = ''
-        lw.log( ['the illegal characters are ', self.ILLEGALCHARS, 'the replacement is ' + self.ILLEGALREPLACE] )
-        for c in list( self._remove_trailing_dot( name ) ):
-            if c in self.ILLEGALCHARS:
-                s_name = s_name + self.ILLEGALREPLACE
-            else:
-                s_name = s_name + c
-        return s_name
