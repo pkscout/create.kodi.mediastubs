@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
 from resources.lib.fileops import checkPath, deleteFile, osPathFromString, setSafeName, writeFile
-from resources.lib.url import URL
+from resources.lib.tvmazeapi import TVMaze
 from resources.lib.xlogger import Logger
 from configparser import *
 
@@ -19,7 +19,6 @@ def _deletePID():
     lw.log (loglines )
     lw.log( ['script stopped'], 'info' )
 
-JSONURL = URL( 'json' )
 pid = str(os.getpid())
 pidfile = os.path.join( p_folderpath, 'data', 'create.pid' )
 atexit.register( _deletePID )
@@ -61,6 +60,8 @@ class Main:
         parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
         parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box" )
         parser.add_argument( "-y", "--type", help="the media type for the stub (must be a valid Kodi type)" )
+        parser.add_argument( "-u", "--tvmaze_user", help="the TV Maze user id (only needed for certain functions)" )
+        parser.add_argument( "-a", "--tvmaze_apikey", help="the TV Maze api key (only needed for certain functions)" )
         parser.add_argument( "-r", "--streamfile", action="store_true", help="output as a stream file instead of a media stub")
         self.ARGS = parser.parse_args()
 
@@ -86,6 +87,19 @@ class Main:
             self.MSG = self.ARGS.msg
         else:
             self.MSG = config.Get( 'msg' )
+        if self.ARGS.lookback:
+            self.LOOKBACK = self.ARGS.lookback
+        else:
+            self.LOOKBACK = config.Get( 'lookback' )
+        if self.ARGS.tvmaze_user:
+            tvmaze_user = self.ARGS.tvmaze_user
+        else:
+            tvmaze_user = config.Get( 'tvmaze_user' )
+        if self.ARGS.tvmaze_apikey:
+            tvmaze_apikey = self.ARGS.tvmaze_apikey
+        else:
+            tvmaze_apikey = config.Get( 'tvmaze_user' )
+        self.TVMAZE = TVMaze( user=tvmaze_user, apikey=tvmaze_apikey )
 
 
     def _add_leading_zeros( self, num ):
@@ -172,8 +186,7 @@ class Main:
     def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
         params = { 'embed':'episodes' }
         for tvmazeid in self.ARGS.tvmazeids.split( ',' ):
-            url = 'https://api.tvmaze.com/shows/%s' % tvmazeid
-            success, loglines, show = JSONURL.Get( url, params=params )
+            success, loglines, show = self.TVMAZE.getShow( tvmazeid, params=params )
             lw.log( loglines )
             if success:
                 try:
