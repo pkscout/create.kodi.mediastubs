@@ -51,14 +51,14 @@ class Main:
         parser = argparse.ArgumentParser()
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument( "-n", "--name", help="the name of the series/movie" )
-        group.add_argument( "-f", "--source", help="generate file based on either settings or tvmazeid")
-        parser.add_argument( "-i", "--tvmazeids", help="comma separated list of the TV Maze ID of the shows" )
+        group.add_argument( "-f", "--source", help="generate file based on either 'settings' or 'tvmaze'")
+        parser.add_argument( "-i", "--tvmazeids", help="TV Maze IDs (comma sep), 'followed', or 'tags:tagids' (comma sep)" )
         parser.add_argument( "-l", "--lookback", help="number of days backwards in time to look for episode match" )
         parser.add_argument( "-s", "--seasons", help="comma separated list of the seasons to create" )
         parser.add_argument( "-e", "--episodes", help="comma separated list of the number of episodes in each season" )
-        parser.add_argument( "-d", "--dates", help="comma separated list of season dates" )
+        parser.add_argument( "-d", "--dates", help="comma separated list of season dates (or True to use tvmaze airdates)" )
         parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
-        parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box" )
+        parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box (or 'tag-based' to use tvmaze tag name based msg)" )
         parser.add_argument( "-y", "--type", help="the media type for the stub (must be a valid Kodi type)" )
         parser.add_argument( "-u", "--tvmaze_user", help="the TV Maze user id (only needed for certain functions)" )
         parser.add_argument( "-a", "--tvmaze_apikey", help="the TV Maze api key (only needed for certain functions)" )
@@ -68,6 +68,7 @@ class Main:
 
     def _init_vars( self ):
         self.DATAROOT = config.Get( 'rootpath' )
+        self.TVMAZEWAIT = config.Get( 'tvmaze_wait' )
         if self.DATAROOT:
             self.DATAROOT = osPathFromString( self.DATAROOT )
         else:
@@ -87,10 +88,6 @@ class Main:
             self.MSG = self.ARGS.msg
         else:
             self.MSG = config.Get( 'msg' )
-        if self.ARGS.lookback:
-            self.LOOKBACK = self.ARGS.lookback
-        else:
-            self.LOOKBACK = config.Get( 'lookback' )
         if self.ARGS.tvmaze_user:
             tvmaze_user = self.ARGS.tvmaze_user
         else:
@@ -98,8 +95,19 @@ class Main:
         if self.ARGS.tvmaze_apikey:
             tvmaze_apikey = self.ARGS.tvmaze_apikey
         else:
-            tvmaze_apikey = config.Get( 'tvmaze_user' )
+            tvmaze_apikey = config.Get( 'tvmaze_apikey' )
         self.TVMAZE = TVMaze( user=tvmaze_user, apikey=tvmaze_apikey )
+        self.TAGNAMEMAP = {}
+        if self.MSG == 'tag-based':
+            success, loglines, results = self.TVMAZE.getTags()
+            lw.log( loglines )
+            if success:
+                for result in results:
+                    try:
+                        self.TAGNAMEMAP[str( result['id'] )] = result['name']
+                    except KeyError:
+                        lw.log( 'no id or name found, aborting' )
+                        break
 
 
     def _add_leading_zeros( self, num ):
@@ -121,7 +129,7 @@ class Main:
             ext = 'disc'
         if self.ARGS.source == 'settings':
             self._create_stubs_from_settings( media_type, ext )
-        elif self.ARGS.source == 'tvmazeids':
+        elif self.ARGS.source == 'tvmaze':
             self._create_stubs_from_tvmazeids( media_type, ext )
         elif self.ARGS.source:
             lw.log( ['invalid argument for source: %s' % self.ARGS.source] )
@@ -184,53 +192,105 @@ class Main:
 
 
     def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
-        params = { 'embed':'episodes' }
-        for tvmazeid in self.ARGS.tvmazeids.split( ',' ):
-            success, loglines, show = self.TVMAZE.getShow( tvmazeid, params=params )
+        if self.ARGS.tvmazeids == 'followed':
+            success, loglines, results = self.TVMAZE.getFollowedShows()
             lw.log( loglines )
-            if success:
-                try:
-                    showname = show['name']
-                    episodes = show["_embedded"]['episodes']
-                except IndexError:
-                    lw.log( ['no valid show name or episode list, exiting'] )
-                    return
-                file_text = self._get_file_text()
-                video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
-                                                    illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+            items = self._extract_tvmaze_showids( results )
+            lw.log( ['continuing with updated list of shows of:', items] )
+        elif 'tags' in self.ARGS.tvmazeids:
+            items = []
+            tag_show_map = {}
+            try:
+                tags = self.ARGS.tvmazeids.split( ':' )[1].split( ',' )
+            except IndexError:
+                tags = []
+                lw.log( ['no tags found in tags call'] )
+            for tag in tags:
+                success, loglines, results = self.TVMAZE.getTaggedShows( tag )
                 lw.log( loglines )
-                video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-                success, loglines = checkPath( video_path )
-                lw.log( loglines )
+                show_ids = self._extract_tvmaze_showids( results )
+                items.extend( show_ids )
+                for show_id in show_ids:
+                    tag_show_map[show_id] = tag
+            lw.log( ['continuing with updated list of show ids of:', items] )
+        else:
+            items = self.ARGS.tvmazeids.split( ',' )
+        for item in items:
+            success, loglines, show = self.TVMAZE.getShow( item, params={'embed':'episodes'} )
+            lw.log( loglines )
+            if not success:
+                lw.log( ['got nothing back from TVMaze, skipping'] )
+                continue
+            time.sleep( self.TVMAZEWAIT )
+            try:
+                showname = show['name']
+                episodes = show["_embedded"]['episodes']
+            except KeyError:
+                lw.log( ['no valid show name and/or episode list, skipping'] )
+                continue
+            old_msg = self.MSG
+            if self.TAGNAMEMAP and tag_show_map:
+                self.MSG = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
+                lw.log( ['message set to: %s' % self.MSG] )
+            file_text = self._get_file_text()
+            self.MSG = old_msg
+            video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
+                                                illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+            lw.log( loglines )
+            video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+            success, loglines = checkPath( video_path )
+            lw.log( loglines )
+            if self.ARGS.lookback:
+                checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
+                checkdate = checkdateraw.strftime( config.Get( 'dateformat' ) )
+                lw.log( ['checking for epsiode matches based on date of %s' % checkdate] )
+            for episode in episodes:
                 if self.ARGS.lookback:
-                    checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
-                    checkdate = checkdateraw.strftime( config.Get( 'dateformat' ) )
-                    lw.log( ['checking for epsiode matches based on date of %s' % checkdate] )
-                for episode in episodes:
-                    if self.ARGS.lookback:
-                        if not episode.get( 'airdate' ) in checkdate:
-                            continue
-                    if self.ARGS.seasons:
-                        if not str( episode.get( 'season' ) ) in self.ARGS.seasons:
-                            continue
-                    if self.ARGS.episodes:
-                        if not str( episode.get( 'number' ) ) in self.ARGS.episodes:
-                            continue
-                    ep_name, loglines = setSafeName( episode.get( 'name' ), illegalchars=self.ILLEGALCHARS,
-                                                     illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-                    lw.log( loglines )
-                    ep_season = self._add_leading_zeros( episode.get( 'season' ) )
-                    ep_number = self._add_leading_zeros( episode.get( 'number' ) )
-                    if not ep_season and not ep_number:
-                        lw.log( ['need both season and episode number to create a valid file, exiting'] )
-                        return
-                    if ep_name:
-                        full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
-                    else:
-                        full_episode = 'S%sE%s' % (ep_season, ep_number)                
-                    file_name = '%s.%s.%s' % (video_name, full_episode, ext)
-                    file_path = os.path.join( video_path, file_name )
-                    self._write_stub( file_path, file_text, setdate=self.ARGS.dates )
+                    if not episode.get( 'airdate' ) in checkdate:
+                        continue
+                if self.ARGS.seasons:
+                    if not str( episode.get( 'season' ) ) in self.ARGS.seasons:
+                        continue
+                if self.ARGS.episodes:
+                    if not str( episode.get( 'number' ) ) in self.ARGS.episodes:
+                        continue
+                ep_name, loglines = setSafeName( episode.get( 'name' ), illegalchars=self.ILLEGALCHARS,
+                                                 illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+                lw.log( loglines )
+                ep_season = self._add_leading_zeros( episode.get( 'season' ) )
+                ep_number = self._add_leading_zeros( episode.get( 'number' ) )
+                if not ep_season and not ep_number:
+                    lw.log( ['need both season and episode number to create a valid file, skipping'] )
+                    continue
+                if ep_name:
+                    full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
+                else:
+                    full_episode = 'S%sE%s' % (ep_season, ep_number)                
+                file_name = '%s.%s.%s' % (video_name, full_episode, ext)
+                file_path = os.path.join( video_path, file_name )
+                if self.ARGS.dates:
+                    self._write_stub( file_path, file_text, setdate=episode.get( 'airdate' ) )
+                else:
+                    self._write_stub( file_path, file_text )
+
+
+    def _extract_tvmaze_showids( self, results ):
+        items = []
+        if self._check_results( results ):
+            for show in results:
+                try:
+                    items.append( show['show_id'] )
+                except KeyError:
+                    continue
+        return items
+
+
+    def _check_results( self, results ):
+        try:
+            check_results = results[0]['show_id']
+        except (IndexError, KeyError):
+            return False
+        return True
 
 
     def _get_file_text( self, title='', msg='' ):
