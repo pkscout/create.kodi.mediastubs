@@ -4,6 +4,12 @@ This script generates a set of text files you can use in Kodi for TV shows or mo
 ## PREREQUISITES:
 Python 3.x (tested with Python 3.7).  This almost certainly won't work with Python 2.7 (or earlier).  Please see <https://legacy.python.org/dev/peps/pep-0373/> for information on the sunset date for Python 2.7.
 
+### Other Modules
+There in one other module that is required for the script to work properly.
+```
+pip3 install requests
+```
+
 ## INSTALLATION:
 To install download and unzip in any directory.
 
