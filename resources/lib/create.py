@@ -1,53 +1,29 @@
-# v.0.4.1
 
-import atexit, argparse, os, random, sys, time
+import argparse, os, sys, time
 from datetime import date, timedelta
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
 from resources.lib.fileops import checkPath, deleteFile, osPathFromString, setSafeName, writeFile
-from resources.lib.tvmazeapi import TVMaze
+from resources.lib.apis import tvmaze
 from resources.lib.xlogger import Logger
 from configparser import *
-
-p_folderpath, p_filename = os.path.split( sys.argv[0] )
-logpath = os.path.join( p_folderpath, 'data', 'logs', '' )
-checkPath( logpath )
-lw = Logger( logfile=os.path.join( logpath, 'logfile.log' ), numbackups=config.Get( 'logbackups' ), logdebug=config.Get( 'debug' ) )
-
-def _deletePID():
-    success, loglines = deleteFile( pidfile )
-    lw.log (loglines )
-    lw.log( ['script stopped'], 'info' )
-
-pid = str(os.getpid())
-pidfile = os.path.join( p_folderpath, 'data', 'create.pid' )
-atexit.register( _deletePID )
 
 
 
 class Main:
-    def __init__( self ):
-        lw.log( ['script started'], 'info' )
-        self._setPID()
+    def __init__( self, thepath ):
+        """Runs the various routines."""
+        self.LW = Logger( logfile=os.path.join(os.path.dirname( thepath ), 'data', 'logs', 'logfile.log' ),
+                          numbackups=config.Get( 'logbackups' ), logdebug=config.Get( 'debug' ) )
+        self.LW.log( ['script started'], 'info' )
         self._parse_argv()
         self._init_vars()
         self._create_stubs()
-
-
-    def _setPID( self ):
-        basetime = time.time()
-        while os.path.isfile( pidfile ):
-            time.sleep( random.randint( 1, 3 ) )
-            if time.time() - basetime > config.Get( 'aborttime' ):
-                err_str = 'taking too long for previous process to close - aborting attempt'
-                lw.log( [err_str] )
-                sys.exit( err_str )
-        lw.log( ['setting PID file'] )
-        success, loglines = writeFile( pid, pidfile, 'w' )
-        lw.log( loglines )
+        self.LW.log( ['script stopped'], 'info' )
 
 
     def _parse_argv( self ):
+        self.LW.logs( ['parsing arguments from command line'], 'info' )
         parser = argparse.ArgumentParser()
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument( "-n", "--name", help="the name of the series/movie" )
@@ -67,6 +43,7 @@ class Main:
 
 
     def _init_vars( self ):
+        self.LW.logs( ['initializing variables'], 'info' )
         self.DATAROOT = config.Get( 'rootpath' )
         self.TVMAZEWAIT = config.Get( 'tvmaze_wait' )
         if self.DATAROOT:
@@ -96,17 +73,17 @@ class Main:
             tvmaze_apikey = self.ARGS.tvmaze_apikey
         else:
             tvmaze_apikey = config.Get( 'tvmaze_apikey' )
-        self.TVMAZE = TVMaze( user=tvmaze_user, apikey=tvmaze_apikey )
+        self.TVMAZE = tvmaze.API( user=tvmaze_user, apikey=tvmaze_apikey )
         self.TAGNAMEMAP = {}
         if self.MSG == 'tag-based':
             success, loglines, results = self.TVMAZE.getTags()
-            lw.log( loglines )
+            self.LW.log( loglines )
             if success:
                 for result in results:
                     try:
                         self.TAGNAMEMAP[str( result['id'] )] = result['name']
                     except KeyError:
-                        lw.log( 'no id or name found, aborting' )
+                        self.LW.log( ['no id or name found, aborting'], 'info' )
                         break
 
 
@@ -119,6 +96,7 @@ class Main:
 
 
     def _create_stubs( self ):
+        self.LW.logs( ['creating stubs'], 'info' )
         if self.ARGS.type:
             media_type = '.' + self.ARGS.type
         else:
@@ -132,16 +110,17 @@ class Main:
         elif self.ARGS.source == 'tvmaze':
             self._create_stubs_from_tvmazeids( media_type, ext )
         elif self.ARGS.source:
-            lw.log( ['invalid argument for source: %s' % self.ARGS.source] )
+            self.LW.log( ['invalid argument for source: %s' % self.ARGS.source], 'info' )
         else:
             self._create_stubs_from_args( media_type, ext )
 
 
     def _create_stubs_from_args( self, media_type='', ext='disc' ):
+        self.LW.logs( ['creating stubs from command line arguments'], 'info' )
         file_text = self._get_file_text()
         video_name, loglines = setSafeName( self.ARGS.name, illegalchars=self.ILLEGALCHARS,
                                             illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-        lw.log( loglines )
+        self.LW.log( loglines )
         video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
         try:
             season_list = self.ARGS.seasons.split( ',' )
@@ -151,7 +130,7 @@ class Main:
             season_list = []
             episode_list = []
         success, loglines = checkPath( video_path )
-        lw.log( loglines )
+        self.LW.log( loglines )
         ref = 0
         for season in season_list:
             season_num = self._add_leading_zeros( season )
@@ -172,13 +151,15 @@ class Main:
 
 
     def _create_stubs_from_settings( self, media_type='', ext='disc' ):
+        self.LW.logs( ['creating stubs from settings'], 'info' )
         for video in config.Get( 'videos' ):
-            lw.log( ['checking settings date %s against today %s' % (video.get( 'date' ), date.today().strftime( config.Get( 'dateformat' ) ))] )
-            if video.get( 'date' ) == date.today().strftime( config.Get( 'dateformat' ) ):
+            today_formatted = date.today().strftime( config.Get( 'dateformat' ) )
+            self.LW.log( ['checking settings date %s against today %s' % (video.get( 'date' ), today_formatted)], 'info' )
+            if video.get( 'date' ) == today_formatted:
                 file_text = self._get_file_text( video.get( 'title' ), video.get( 'msg' ))
                 video_name, loglines = setSafeName( video.get( 'name' ), illegalchars=self.ILLEGALCHARS,
                                                     illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-                lw.log( loglines )
+                self.LW.log( loglines )
                 if video.get( 'episode' ):
                     video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
                     file_name = '%s.%s.%s' % (video_name, video.get( 'episode' ), ext)
@@ -186,64 +167,69 @@ class Main:
                     video_path = os.path.join( self.DATAROOT, config.Get( 'movieroot' ), video_name )
                     file_name = '%s.%s' % (video_name, ext)
                 success, loglines = checkPath( video_path )
-                lw.log( loglines )
+                self.LW.log( loglines )
                 file_path = os.path.join( video_path, file_name )
                 self._write_stub( file_path, file_text, setdate=self.DATELIST[ref] )
 
 
     def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
+        self.LW.logs( ['creating stubs from TV Maze IDs'], 'info' )
+        items = []
+        tag_show_map = {}
         if self.ARGS.tvmazeids == 'followed':
+            self.LW.logs( ['using TV Maze followed shows as source'], 'info' )
             success, loglines, results = self.TVMAZE.getFollowedShows()
-            lw.log( loglines )
+            self.LW.log( loglines )
+            if not success:
+                return
             items = self._extract_tvmaze_showids( results )
-            lw.log( ['continuing with updated list of shows of:', items] )
+            self.LW.log( ['continuing with updated list of shows of:', items] )
         elif 'tags' in self.ARGS.tvmazeids:
-            items = []
-            tag_show_map = {}
+            self.LW.logs( ['using TV Maze tagged shows as source'], 'info' )
             try:
                 tags = self.ARGS.tvmazeids.split( ':' )[1].split( ',' )
             except IndexError:
-                tags = []
-                lw.log( ['no tags found in tags call'] )
+                self.LW.log( ['no tags found in tags call'], 'info' )
+                return
             for tag in tags:
                 success, loglines, results = self.TVMAZE.getTaggedShows( tag )
-                lw.log( loglines )
+                self.LW.log( loglines )
                 show_ids = self._extract_tvmaze_showids( results )
                 items.extend( show_ids )
                 for show_id in show_ids:
                     tag_show_map[show_id] = tag
-            lw.log( ['continuing with updated list of show ids of:', items] )
+            self.LW.log( ['continuing with updated list of show ids of:', items], 'info' )
         else:
             items = self.ARGS.tvmazeids.split( ',' )
         for item in items:
             success, loglines, show = self.TVMAZE.getShow( item, params={'embed':'episodes'} )
-            lw.log( loglines )
+            self.LW.log( loglines )
             if not success:
-                lw.log( ['got nothing back from TVMaze, skipping'] )
+                self.LW.log( ['got nothing back from TVMaze, skipping'], 'info' )
                 continue
             time.sleep( self.TVMAZEWAIT )
             try:
                 showname = show['name']
                 episodes = show["_embedded"]['episodes']
             except KeyError:
-                lw.log( ['no valid show name and/or episode list, skipping'] )
+                self.LW.log( ['no valid show name and/or episode list, skipping'], 'info' )
                 continue
             old_msg = self.MSG
             if self.TAGNAMEMAP and tag_show_map:
                 self.MSG = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
-                lw.log( ['message set to: %s' % self.MSG] )
+                self.LW.log( ['message set to: %s' % self.MSG] )
             file_text = self._get_file_text()
             self.MSG = old_msg
             video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
                                                 illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-            lw.log( loglines )
+            self.LW.log( loglines )
             video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
             success, loglines = checkPath( video_path )
-            lw.log( loglines )
+            self.LW.log( loglines )
             if self.ARGS.lookback:
                 checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
                 checkdate = checkdateraw.strftime( config.Get( 'dateformat' ) )
-                lw.log( ['checking for epsiode matches based on date of %s' % checkdate] )
+                self.LW.log( ['checking for epsiode matches based on date of %s' % checkdate], 'info' )
             for episode in episodes:
                 if self.ARGS.lookback:
                     if not episode.get( 'airdate' ) in checkdate:
@@ -256,11 +242,11 @@ class Main:
                         continue
                 ep_name, loglines = setSafeName( episode.get( 'name' ), illegalchars=self.ILLEGALCHARS,
                                                  illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-                lw.log( loglines )
+                self.LW.log( loglines )
                 ep_season = self._add_leading_zeros( episode.get( 'season' ) )
                 ep_number = self._add_leading_zeros( episode.get( 'number' ) )
                 if not ep_season and not ep_number:
-                    lw.log( ['need both season and episode number to create a valid file, skipping'] )
+                    self.LW.log( ['need both season and episode number to create a valid file, skipping'], 'info' )
                     continue
                 if ep_name:
                     full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
@@ -287,7 +273,7 @@ class Main:
 
     def _check_results( self, results ):
         try:
-            check_results = results[0]['show_id']
+            results[0]['show_id']
         except (IndexError, KeyError):
             return False
         return True
@@ -304,8 +290,9 @@ class Main:
             return '<discstub>\r    <title>%s</title>\r    <message>%s</message>\r</discstub>' % (title, msg)
 
     def _write_stub( self, file_path, file_text, setdate='' ):
+        self.LW.log( ['writing out stub file to %s' % file_path], 'info' )
         success, loglines = writeFile( file_text, file_path, 'w' )
-        lw.log( loglines )
+        self.LW.log( loglines )
         if success and setdate:
             t = time.mktime( time.strptime( setdate, config.Get( 'dateformat' ) ) )
             os.utime( file_path, (t,t) )

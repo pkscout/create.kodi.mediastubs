@@ -1,4 +1,4 @@
-# v.0.12.0
+# v.0.12.1
 
 import os, re, sys
 try:
@@ -233,7 +233,7 @@ def setSafeName( thename, illegalchars='<>:"/\|?*', illegalreplace='_', endrepla
             s_name = s_name + c
     loglines.append( 'finished with %s' % s_name )
     return s_name, loglines
-        
+
 
 def writeFile( data, filename, wtype='wb' ):
     log_lines = []
