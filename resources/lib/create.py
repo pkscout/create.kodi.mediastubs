@@ -12,7 +12,8 @@ from resources.lib.xlogger import Logger
 class Main:
     def __init__( self, thepath ):
         """Runs the various routines."""
-        self.LW = Logger( logfile=os.path.join(os.path.dirname( thepath ), 'data', 'logs', 'logfile.log' ),
+        self.ROOTPATH = os.path.dirname( thepath )
+        self.LW = Logger( logfile=os.path.join(self.ROOTPATH, 'data', 'logs', 'logfile.log' ),
                           numbackups=config.Get( 'logbackups' ), logdebug=config.Get( 'debug' ) )
         self.LW.log( ['script started'], 'info' )
         self._parse_argv()
@@ -22,7 +23,7 @@ class Main:
 
 
     def _parse_argv( self ):
-        self.LW.logs( ['parsing arguments from command line'], 'info' )
+        self.LW.log( ['parsing arguments from command line'], 'info' )
         parser = argparse.ArgumentParser()
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument( "-n", "--name", help="the name of the series/movie" )
@@ -35,20 +36,18 @@ class Main:
         parser.add_argument( "-t", "--title", help="title for the Kodi dialog box" )
         parser.add_argument( "-m", "--msg", help="message used in the Kodi dialog box (or 'tag-based' to use tvmaze tag name based msg)" )
         parser.add_argument( "-y", "--type", help="the media type for the stub (must be a valid Kodi type)" )
-        parser.add_argument( "-u", "--tvmaze_user", help="the TV Maze user id (only needed for certain functions)" )
-        parser.add_argument( "-a", "--tvmaze_apikey", help="the TV Maze api key (only needed for certain functions)" )
         parser.add_argument( "-r", "--streamfile", action="store_true", help="output as a stream file instead of a media stub")
         self.ARGS = parser.parse_args()
 
 
     def _init_vars( self ):
-        self.LW.logs( ['initializing variables'], 'info' )
+        self.LW.log( ['initializing variables'], 'info' )
         self.DATAROOT = config.Get( 'rootpath' )
         self.TVMAZEWAIT = config.Get( 'tvmaze_wait' )
         if self.DATAROOT:
             self.DATAROOT = osPathFromString( self.DATAROOT )
         else:
-            self.DATAROOT = os.path.join( p_folderpath, 'data' )
+            self.DATAROOT = os.path.join( self.ROOTPATH, 'data' )
         self.ILLEGALCHARS = list( config.Get( 'illegalchars' ) )
         self.ILLEGALREPLACE = config.Get( 'illegalreplace' )
         self.ENDREPLACE = config.Get( 'endreplace' )
@@ -64,15 +63,7 @@ class Main:
             self.MSG = self.ARGS.msg
         else:
             self.MSG = config.Get( 'msg' )
-        if self.ARGS.tvmaze_user:
-            tvmaze_user = self.ARGS.tvmaze_user
-        else:
-            tvmaze_user = config.Get( 'tvmaze_user' )
-        if self.ARGS.tvmaze_apikey:
-            tvmaze_apikey = self.ARGS.tvmaze_apikey
-        else:
-            tvmaze_apikey = config.Get( 'tvmaze_apikey' )
-        self.TVMAZE = tvmaze.API( user=tvmaze_user, apikey=tvmaze_apikey )
+        self.TVMAZE = tvmaze.API( user=config.Get( 'tvmaze_user' ), apikey=config.Get( 'tvmaze_apikey' ) )
         self.TAGNAMEMAP = {}
         if self.MSG == 'tag-based':
             success, loglines, results = self.TVMAZE.getTags()
@@ -95,7 +86,7 @@ class Main:
 
 
     def _create_stubs( self ):
-        self.LW.logs( ['creating stubs'], 'info' )
+        self.LW.log( ['creating stubs'], 'info' )
         if self.ARGS.type:
             media_type = '.' + self.ARGS.type
         else:
@@ -115,7 +106,7 @@ class Main:
 
 
     def _create_stubs_from_args( self, media_type='', ext='disc' ):
-        self.LW.logs( ['creating stubs from command line arguments'], 'info' )
+        self.LW.log( ['creating stubs from command line arguments'], 'info' )
         file_text = self._get_file_text()
         video_name, loglines = setSafeName( self.ARGS.name, illegalchars=self.ILLEGALCHARS,
                                             illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
@@ -150,7 +141,7 @@ class Main:
 
 
     def _create_stubs_from_settings( self, media_type='', ext='disc' ):
-        self.LW.logs( ['creating stubs from settings'], 'info' )
+        self.LW.log( ['creating stubs from settings'], 'info' )
         for video in config.Get( 'videos' ):
             today_formatted = date.today().strftime( config.Get( 'dateformat' ) )
             self.LW.log( ['checking settings date %s against today %s' % (video.get( 'date' ), today_formatted)], 'info' )
@@ -172,11 +163,11 @@ class Main:
 
 
     def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
-        self.LW.logs( ['creating stubs from TV Maze IDs'], 'info' )
+        self.LW.log( ['creating stubs from TV Maze IDs'], 'info' )
         items = []
         tag_show_map = {}
         if self.ARGS.tvmazeids == 'followed':
-            self.LW.logs( ['using TV Maze followed shows as source'], 'info' )
+            self.LW.log( ['using TV Maze followed shows as source'], 'info' )
             success, loglines, results = self.TVMAZE.getFollowedShows()
             self.LW.log( loglines )
             if not success:
@@ -184,7 +175,7 @@ class Main:
             items = self._extract_tvmaze_showids( results )
             self.LW.log( ['continuing with updated list of shows of:', items] )
         elif 'tags' in self.ARGS.tvmazeids:
-            self.LW.logs( ['using TV Maze tagged shows as source'], 'info' )
+            self.LW.log( ['using TV Maze tagged shows as source'], 'info' )
             try:
                 tags = self.ARGS.tvmazeids.split( ':' )[1].split( ',' )
             except IndexError:
@@ -213,17 +204,15 @@ class Main:
             except KeyError:
                 self.LW.log( ['no valid show name and/or episode list, skipping'], 'info' )
                 continue
-            old_msg = self.MSG
             if self.TAGNAMEMAP and tag_show_map:
-                self.MSG = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
+                tag_msg = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
                 self.LW.log( ['message set to: %s' % self.MSG] )
-            file_text = self._get_file_text()
-            self.MSG = old_msg
+            file_text = self._get_file_text( msg=tag_msg )
             video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
                                                 illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
             self.LW.log( loglines )
             video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-            success, loglines = checkPath( video_path )
+            success, loglines = checkPath( video_path )   
             self.LW.log( loglines )
             if self.ARGS.lookback:
                 checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
