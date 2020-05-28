@@ -1,12 +1,11 @@
 
-import argparse, os, sys, time
+import argparse, os, time
 from datetime import date, timedelta
 import resources.config as config
 from urllib.parse import urlencode, quote_plus
-from resources.lib.fileops import checkPath, deleteFile, osPathFromString, setSafeName, writeFile
+from resources.lib.fileops import *
 from resources.lib.apis import tvmaze
 from resources.lib.xlogger import Logger
-from configparser import *
 
 
 
@@ -251,7 +250,7 @@ class Main:
                 if ep_name:
                     full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
                 else:
-                    full_episode = 'S%sE%s' % (ep_season, ep_number)                
+                    full_episode = 'S%sE%s' % (ep_season, ep_number)
                 file_name = '%s.%s.%s' % (video_name, full_episode, ext)
                 file_path = os.path.join( video_path, file_name )
                 if self.ARGS.dates:
