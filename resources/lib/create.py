@@ -233,7 +233,7 @@ class Main:
                                             illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
         self.LW.log( loglines )
         video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-        success, loglines = checkPath( video_path )   
+        success, loglines = checkPath( video_path )
         self.LW.log( loglines )
         if self.ARGS.lookback:
             checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
@@ -270,7 +270,7 @@ class Main:
             if config.Get( 'markacquired' ):
                 self.LW.log( ['marking show as acquired on TV Maze'], 'info' )
                 time.sleep( self.TVMAZEWAIT )
-                success, loglines, results = self.TVMAZE.markEpisode( episode.get( 'id', 0 ), marked_as=1 ) 
+                success, loglines, results = self.TVMAZE.markEpisode( episode.get( 'id', 0 ), marked_as=1 )
                 self.LW.log( loglines )
 
 
