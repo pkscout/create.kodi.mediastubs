@@ -164,6 +164,29 @@ class Main:
 
     def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
         self.LW.log( ['creating stubs from TV Maze IDs'], 'info' )
+        for item in self._get_tvmaze_ids():
+            time.sleep( self.TVMAZEWAIT )
+            success, loglines, show = self.TVMAZE.getShow( item, params={'embed':'episodes'} )
+            self.LW.log( loglines )
+            if not success:
+                self.LW.log( ['got nothing back from TVMaze, skipping'], 'info' )
+                continue
+            try:
+                showname = show['name']
+                episodes = show["_embedded"]['episodes']
+            except KeyError:
+                self.LW.log( ['no valid show name and/or episode list, skipping'], 'info' )
+                continue
+            if self.TAGNAMEMAP and tag_show_map:
+                tag_msg = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
+                self.LW.log( ['message set to: %s' % tag_msg] )
+                file_text = self._get_file_text( msg=tag_msg )
+            else:
+                file_text = self._get_file_text()
+            self._write_tvmave_stubs( ext, file_text, showname, episodes )
+
+
+    def _get_tvmaze_ids( self ):
         items = []
         tag_show_map = {}
         if self.ARGS.tvmazeids == 'followed':
@@ -191,61 +214,7 @@ class Main:
             self.LW.log( ['continuing with updated list of show ids of:', items], 'info' )
         else:
             items = self.ARGS.tvmazeids.split( ',' )
-        for item in items:
-            success, loglines, show = self.TVMAZE.getShow( item, params={'embed':'episodes'} )
-            self.LW.log( loglines )
-            if not success:
-                self.LW.log( ['got nothing back from TVMaze, skipping'], 'info' )
-                continue
-            time.sleep( self.TVMAZEWAIT )
-            try:
-                showname = show['name']
-                episodes = show["_embedded"]['episodes']
-            except KeyError:
-                self.LW.log( ['no valid show name and/or episode list, skipping'], 'info' )
-                continue
-            if self.TAGNAMEMAP and tag_show_map:
-                tag_msg = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
-                self.LW.log( ['message set to: %s' % self.MSG] )
-            file_text = self._get_file_text( msg=tag_msg )
-            video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
-                                                illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-            self.LW.log( loglines )
-            video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-            success, loglines = checkPath( video_path )   
-            self.LW.log( loglines )
-            if self.ARGS.lookback:
-                checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
-                checkdate = checkdateraw.strftime( config.Get( 'dateformat' ) )
-                self.LW.log( ['checking for epsiode matches based on date of %s' % checkdate], 'info' )
-            for episode in episodes:
-                if self.ARGS.lookback:
-                    if not episode.get( 'airdate' ) in checkdate:
-                        continue
-                if self.ARGS.seasons:
-                    if not str( episode.get( 'season' ) ) in self.ARGS.seasons:
-                        continue
-                if self.ARGS.episodes:
-                    if not str( episode.get( 'number' ) ) in self.ARGS.episodes:
-                        continue
-                ep_name, loglines = setSafeName( episode.get( 'name' ), illegalchars=self.ILLEGALCHARS,
-                                                 illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
-                self.LW.log( loglines )
-                ep_season = self._add_leading_zeros( episode.get( 'season' ) )
-                ep_number = self._add_leading_zeros( episode.get( 'number' ) )
-                if not ep_season and not ep_number:
-                    self.LW.log( ['need both season and episode number to create a valid file, skipping'], 'info' )
-                    continue
-                if ep_name:
-                    full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
-                else:
-                    full_episode = 'S%sE%s' % (ep_season, ep_number)
-                file_name = '%s.%s.%s' % (video_name, full_episode, ext)
-                file_path = os.path.join( video_path, file_name )
-                if self.ARGS.dates:
-                    self._write_stub( file_path, file_text, setdate=episode.get( 'airdate' ) )
-                else:
-                    self._write_stub( file_path, file_text )
+        return items
 
 
     def _extract_tvmaze_showids( self, results ):
@@ -257,6 +226,52 @@ class Main:
                 except KeyError:
                     continue
         return items
+
+
+    def _write_tvmave_stubs( self, ext, file_text, showname, episodes ):
+        video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
+                                            illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+        self.LW.log( loglines )
+        video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
+        success, loglines = checkPath( video_path )   
+        self.LW.log( loglines )
+        if self.ARGS.lookback:
+            checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
+            checkdate = checkdateraw.strftime( config.Get( 'dateformat' ) )
+            self.LW.log( ['checking for epsiode matches based on date of %s' % checkdate], 'info' )
+        for episode in episodes:
+            if self.ARGS.lookback:
+                if not episode.get( 'airdate' ) in checkdate:
+                    continue
+            if self.ARGS.seasons:
+                if not str( episode.get( 'season' ) ) in self.ARGS.seasons:
+                    continue
+            if self.ARGS.episodes:
+                if not str( episode.get( 'number' ) ) in self.ARGS.episodes:
+                    continue
+            ep_name, loglines = setSafeName( episode.get( 'name' ), illegalchars=self.ILLEGALCHARS,
+                                             illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
+            self.LW.log( loglines )
+            ep_season = self._add_leading_zeros( episode.get( 'season' ) )
+            ep_number = self._add_leading_zeros( episode.get( 'number' ) )
+            if not ep_season and not ep_number:
+                self.LW.log( ['need both season and episode number to create a valid file, skipping'], 'info' )
+                continue
+            if ep_name:
+                full_episode = 'S%sE%s.%s' % (ep_season, ep_number, ep_name)
+            else:
+                full_episode = 'S%sE%s' % (ep_season, ep_number)
+            file_name = '%s.%s.%s' % (video_name, full_episode, ext)
+            file_path = os.path.join( video_path, file_name )
+            if self.ARGS.dates:
+                self._write_stub( file_path, file_text, setdate=episode.get( 'airdate' ) )
+            else:
+                self._write_stub( file_path, file_text )
+            if config.Get( 'markacquired' ):
+                self.LW.log( ['marking show as acquired on TV Maze'], 'info' )
+                time.sleep( self.TVMAZEWAIT )
+                success, loglines, results = self.TVMAZE.markEpisode( episode.get( 'id', 0 ), marked_as=1 ) 
+                self.LW.log( loglines )
 
 
     def _check_results( self, results ):

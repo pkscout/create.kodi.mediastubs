@@ -1,4 +1,4 @@
-#v.0.3.4
+#v.0.4.1
 
 import json
 from . import url
@@ -13,7 +13,7 @@ TXTURL = url.URL()
 class API( object ):
 
     def __init__( self, user='', apikey='' ):
-        """create a TV Maze API object"""
+        """create a TV Maze API object."""
         self.PUBLICURL = 'https://api.tvmaze.com'
         self.USER = user
         self.APIKEY = apikey
@@ -43,6 +43,19 @@ class API( object ):
         return self._call( 'tags/%s/shows' % tag, params, auth=True )
 
 
+    def getTags( self, params=None ):
+        return self._call( 'tags', params, auth=True )
+
+
+    def findSingleShow( self, showname ):
+        params = {'q':showname}
+        return self._call( '/singlesearch/shows', params )
+
+
+    def followShow( self, showid, params=None ):
+        return self._call( 'follows/shows/%s' % showid, params, thetype='put', auth=True )
+
+
     def markEpisode( self, episodeid, marked_as=0, marked_at=0, params=None ):
         payload = {'episode_id':0, 'type':marked_as, 'marked_at':marked_at }
         return self._call( 'episodes/%s' % episodeid, params, data=json.dumps( payload ), thetype='put', auth=True )
@@ -50,10 +63,6 @@ class API( object ):
 
     def unTagShow( self, show, tag, params=None ):
         return self._call( 'tags/%s/shows/%s' % (tag, show), params, auth=True, thetype='delete' )
-
-
-    def getTags( self, params=None ):
-        return self._call( 'tags', params, auth=True )
 
 
     def _call( self, url_end, params, data=None, auth=False, thetype="get" ):
