@@ -1,4 +1,4 @@
-# v.0.12.1
+# v.0.12.3
 
 import os, re, sys
 try:
@@ -212,7 +212,7 @@ def renameFile ( thesource, thedest ):
 
 
 def _remove_trailing_dot( thename, endreplace='' ):
-    if thename[-1] == '.' and len( thename ) > 1 and endreplace is not '.':
+    if thename[-1] == '.' and len( thename ) > 1 and endreplace != '.':
         return _remove_trailing_dot( thename[:-1] + endreplace )
     else:
         return thename
