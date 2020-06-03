@@ -164,7 +164,8 @@ class Main:
 
     def _create_stubs_from_tvmazeids( self, media_type='', ext='disc' ):
         self.LW.log( ['creating stubs from TV Maze IDs'], 'info' )
-        for item in self._get_tvmaze_ids():
+        items, tag_show_map = self._get_tvmaze_ids()
+        for item in items:
             time.sleep( self.TVMAZEWAIT )
             success, loglines, show = self.TVMAZE.getShow( item, params={'embed':'episodes'} )
             self.LW.log( loglines )
@@ -214,7 +215,7 @@ class Main:
             self.LW.log( ['continuing with updated list of show ids of:', items], 'info' )
         else:
             items = self.ARGS.tvmazeids.split( ',' )
-        return items
+        return items, tag_show_map
 
 
     def _extract_tvmaze_showids( self, results ):
@@ -229,11 +230,12 @@ class Main:
 
 
     def _write_tvmave_stubs( self, ext, file_text, showname, episodes ):
+        self.LW.log( ['checking %s' % showname], 'info' )
+        exists = False
         video_name, loglines = setSafeName( showname, illegalchars=self.ILLEGALCHARS,
                                             illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
         self.LW.log( loglines )
         video_path = os.path.join( self.DATAROOT, config.Get( 'tvroot' ), video_name )
-        success, loglines = checkPath( video_path )
         self.LW.log( loglines )
         if self.ARGS.lookback:
             checkdateraw = date.today() - timedelta( days=int( self.ARGS.lookback ) )
@@ -241,7 +243,7 @@ class Main:
             self.LW.log( ['checking for epsiode matches based on date of %s' % checkdate], 'info' )
         for episode in episodes:
             if self.ARGS.lookback:
-                if not episode.get( 'airdate' ) in checkdate:
+                if not (episode.get( 'airdate' ) and episode.get( 'airdate' ) in checkdate):
                     continue
             if self.ARGS.seasons:
                 if not str( episode.get( 'season' ) ) in self.ARGS.seasons:
@@ -263,6 +265,8 @@ class Main:
                 full_episode = 'S%sE%s' % (ep_season, ep_number)
             file_name = '%s.%s.%s' % (video_name, full_episode, ext)
             file_path = os.path.join( video_path, file_name )
+            if not exists:
+                exists, loglines = checkPath( video_path )
             if self.ARGS.dates:
                 self._write_stub( file_path, file_text, setdate=episode.get( 'airdate' ) )
             else:

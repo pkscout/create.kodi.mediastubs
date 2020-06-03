@@ -1,3 +1,8 @@
+v.0.5.4
+- script no longer creates empty show directories
+- fix for files being created if TV Maze listed show episodes but no airdates
+- fix for crash when using tag based lookups
+
 v.0.5.3
 - added option to mark episodes as acquired when creating them
 - updated TV Maze APIs
