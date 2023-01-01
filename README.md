@@ -175,7 +175,7 @@ In addition to changing the default title and message in the settings file, you 
 ```
 
 ### Using the Settings File to Generate Files on a Schedule
-Sometimes you may have a streaming show that is releasing epsiodes weekly instead of all at once.  You can add the `videos` option to the settings file and then run the script from cron so it can generate files for you after the episode becomes available.  The `videos` is a list of dicts. Each dict must have at least the date the file should be created and a name (if you're doing a movie). A TV show also needs an episode number (in Kodi's standard format of SxxExx). You can also include a custom title and message for the Kodi dialog box.  Here's an example of some of the variations:
+Sometimes you may have a streaming show that is releasing episodes weekly instead of all at once.  You can add the `videos` option to the settings file and then run the script from cron so it can generate files for you after the episode becomes available.  The `videos` is a list of dicts. Each dict must have at least the date the file should be created and a name (if you're doing a movie). A TV show also needs an episode number (in Kodi's standard format of SxxExx). You can also include a custom title and message for the Kodi dialog box.  Here's an example of some of the variations:
 
 ```
     videos = [
