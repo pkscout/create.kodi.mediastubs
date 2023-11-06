@@ -1,4 +1,4 @@
-defaults = {'illegalchars': '<>:"/\|?*',
+defaults = {'illegalchars': '<>:"/|?\\*',
             'illegalreplace': '_',
             'endreplace': '',
             'dateformat': '%Y-%m-%d',
