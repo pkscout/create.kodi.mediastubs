@@ -59,11 +59,11 @@ If you set this setting, you can run the script daily and have in generate new s
 * `showurls = <dict>` (default `None`)  
 With this setting you can provide a dict of URLs for TV shows that the script can append to the end of the stream URL for use by the Kodi add-on **Where am I?**  The dict key is the show name.  It'll look something like this:
 ```
-            showurls = { "Anne Rice's Mayfair Witches":"https://tv.apple.com/us/show/mayfair-witches/umc.cmc.2dgf438jtuhresum0f4b1tll8",
-                         "Ahsoka":"https://www.disneyplus.com/browse/entity-e64c22fc-fc7c-4ada-bbec-ab8351b8db97",
-                         "Agatha All Along":"https://www.disneyplus.com/browse/entity-5e474669-a4a2-4b90-a928-5ae7f845090c",
-                         "Ask This Old House":"https://www.pbs.org/show/ask-old-house/",
-                       }
+showurls = { "Anne Rice's Mayfair Witches":"https://tv.apple.com/us/show/mayfair-witches/umc.cmc.2dgf438jtuhresum0f4b1tll8",
+             "Ahsoka":"https://www.disneyplus.com/browse/entity-e64c22fc-fc7c-4ada-bbec-ab8351b8db97",
+             "Agatha All Along":"https://www.disneyplus.com/browse/entity-5e474669-a4a2-4b90-a928-5ae7f845090c",
+             "Ask This Old House":"https://www.pbs.org/show/ask-old-house/",
+           }
 ```
 
 * `aborttime = <int>` (default `30`)  
