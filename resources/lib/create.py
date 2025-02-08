@@ -44,6 +44,7 @@ class Main:
         self.LW.log( ['initializing variables'], 'info' )
         self.DATAROOT = config.Get( 'rootpath' )
         self.TVMAZEWAIT = config.Get( 'tvmaze_wait' )
+        self.SHOWURLS = config.Get( 'showurls' )
         if self.DATAROOT:
             self.DATAROOT = osPathFromString( self.DATAROOT )
         else:
@@ -107,7 +108,7 @@ class Main:
 
     def _create_stubs_from_args( self, media_type='', ext='disc' ):
         self.LW.log( ['creating stubs from command line arguments'], 'info' )
-        file_text = self._get_file_text()
+        file_text = self._get_file_text( self.ARGS.name )
         video_name, loglines = setSafeName( self.ARGS.name, illegalchars=self.ILLEGALCHARS,
                                             illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
         self.LW.log( loglines )
@@ -146,7 +147,7 @@ class Main:
             today_formatted = date.today().strftime( config.Get( 'dateformat' ) )
             self.LW.log( ['checking settings date %s against today %s' % (video.get( 'date' ), today_formatted)], 'info' )
             if video.get( 'date' ) == today_formatted:
-                file_text = self._get_file_text( video.get( 'title' ), video.get( 'msg' ))
+                file_text = self._get_file_text( video.get( 'name' ), title=video.get( 'title' ), msg=video.get( 'msg' ) )
                 video_name, loglines = setSafeName( video.get( 'name' ), illegalchars=self.ILLEGALCHARS,
                                                     illegalreplace=self.ILLEGALREPLACE, endreplace=self.ENDREPLACE )
                 self.LW.log( loglines )
@@ -181,9 +182,9 @@ class Main:
             if self.TAGNAMEMAP and tag_show_map:
                 tag_msg = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
                 self.LW.log( ['message set to: %s' % tag_msg] )
-                file_text = self._get_file_text( msg=tag_msg )
+                file_text = self._get_file_text( showname, msg=tag_msg )
             else:
-                file_text = self._get_file_text()
+                file_text = self._get_file_text( showname )
             self._write_tvmave_stubs( ext, file_text, showname, episodes )
 
 
@@ -286,15 +287,21 @@ class Main:
         return True
 
 
-    def _get_file_text( self, title='', msg='' ):
+    def _get_file_text( self, name, title='', msg='' ):
         if not title:
             title = self.TITLE
         if not msg:
             msg = self.MSG
         if self.ARGS.streamfile:
-            return 'plugin://plugin.whereareyou?empty=pad&%s' % urlencode( {'title':title, 'message':msg}, quote_via=quote_plus )
+            the_url = 'plugin://plugin.whereareyou?empty=pad&%s' % urlencode( {'title':title, 'message':msg}, quote_via=quote_plus )
+            try:
+                the_url = the_url + '&the_url=' + self.SHOWURLS[name]
+            except KeyError:
+                pass
+            return the_url
         else:
             return '<discstub>\r    <title>%s</title>\r    <message>%s</message>\r</discstub>' % (title, msg)
+
 
     def _write_stub( self, file_path, file_text, setdate='' ):
         self.LW.log( ['writing out stub file to %s' % file_path], 'info' )
