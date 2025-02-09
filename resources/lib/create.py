@@ -295,7 +295,7 @@ class Main:
         if self.ARGS.streamfile:
             the_url = 'plugin://plugin.whereareyou?empty=pad&%s' % urlencode( {'title':title, 'message':msg}, quote_via=quote_plus )
             try:
-                the_url = the_url + '&the_url=' + self.SHOWURLS[name]
+                the_url = the_url + '&%s' % urlencode( {'the_url':self.SHOWURLS[name]} )
             except KeyError:
                 pass
             return the_url
