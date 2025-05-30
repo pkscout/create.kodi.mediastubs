@@ -28,7 +28,10 @@ class API(object):
     def getEpisode(self, episodeid, params=None):
         return self._call('episodes/%s' % episodeid, params)
 
-    def getEpisodeBySeasonEpNumber(self, tvmazeid, params):
+    def getAlternateEpisodes(self, altid, params=None):
+        return self._call('alternatelists/%s/alternateepisodes' % altid, params)
+
+    def getEpisodeBySeasonEpNumber(self, tvmazeid, params=None):
         return self._call('shows/%s/episodebynumber' % tvmazeid, params)
 
     def getFollowedShows(self, params=None):

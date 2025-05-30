@@ -35,6 +35,9 @@ For functions requiring a TVMaze subscription, the TVMaze user name.
 * `tvmaze_apikey = '<string>'` (default `''`)  
 For functions requiring a TVMaze subscription, the TVMaze api key.
 
+* `tvmaze_altcountry = '<string>'` (default `'None'`)  
+Two letter country code to use to check for alternate air dates for that country.
+
 * `tvmaze_wait = '<string>'` (default `'0.12'`)  
 Amount of time (in secs) to wait between calls to TVMaze (to stay under API limiting).
 

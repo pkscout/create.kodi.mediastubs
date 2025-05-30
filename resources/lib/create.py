@@ -44,6 +44,7 @@ class Main:
         self.LW.log( ['initializing variables'], 'info' )
         self.DATAROOT = config.Get( 'rootpath' )
         self.TVMAZEWAIT = config.Get( 'tvmaze_wait' )
+        self.TVMAZE_ALTCOUNTRY = config.Get( 'tvmaze_altcountry' )
         self.SHOWURLS = config.Get( 'showurls' )
         if self.DATAROOT:
             self.DATAROOT = osPathFromString( self.DATAROOT )
@@ -168,17 +169,27 @@ class Main:
         items, tag_show_map = self._get_tvmaze_ids()
         for item in items:
             time.sleep( self.TVMAZEWAIT )
-            success, loglines, show = self.TVMAZE.getShow( item, params={'embed':'episodes'} )
+            double_embed = '?embed[]=episodes&embed[]=alternatelists'
+            success, loglines, show = self.TVMAZE.getShow( item + double_embed )
             self.LW.log( loglines )
-            if not success:
+            if not success: 
                 self.LW.log( ['got nothing back from TVMaze, skipping'], 'info' )
                 continue
             try:
                 showname = show['name']
                 episodes = show["_embedded"]['episodes']
+                alternatelists = show["_embedded"]['alternatelists']
             except KeyError:
                 self.LW.log( ['no valid show name and/or episode list, skipping'], 'info' )
                 continue
+            if alternatelists:
+                for alist in alternatelists:
+                    if alist.get("network", {}).get("country", {}).get("code") == self.TVMAZE_ALTCOUNTRY:
+                        success, loglines, altepisodes = self.TVMAZE.getAlternateEpisodes( alist.get("id", 0) )
+                        self.LW.log( loglines )
+                        if success and altepisodes:
+                            episodes = altepisodes
+                        break
             if self.TAGNAMEMAP and tag_show_map:
                 tag_msg = 'Available on %s' % self.TAGNAMEMAP[tag_show_map[item]]
                 self.LW.log( ['message set to: %s' % tag_msg] )

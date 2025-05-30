@@ -1,3 +1,6 @@
+v.0.7.0
+- added ability to get alternate air dates for other countries
+
 v.0.6.0
 - added option to have show URLs in settings for stream file creation
 
