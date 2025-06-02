@@ -170,7 +170,7 @@ class Main:
         for item in items:
             time.sleep( self.TVMAZEWAIT )
             double_embed = '?embed[]=episodes&embed[]=alternatelists'
-            success, loglines, show = self.TVMAZE.getShow( item + double_embed )
+            success, loglines, show = self.TVMAZE.getShow( str( item ) + double_embed )
             self.LW.log( loglines )
             if not success: 
                 self.LW.log( ['got nothing back from TVMaze, skipping'], 'info' )
@@ -184,6 +184,10 @@ class Main:
                 continue
             if alternatelists:
                 for alist in alternatelists:
+                    try:
+                      country_code = alist.get("network", {}).get("country", {}).get("code")
+                    except AttributeError:
+                      continue
                     if alist.get("network", {}).get("country", {}).get("code") == self.TVMAZE_ALTCOUNTRY:
                         success, loglines, altepisodes = self.TVMAZE.getAlternateEpisodes( alist.get("id", 0) )
                         self.LW.log( loglines )

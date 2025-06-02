@@ -1,3 +1,6 @@
+v.0.7.1
+- better error handling when looking for alternate air dates
+
 v.0.7.0
 - added ability to get alternate air dates for other countries
 
