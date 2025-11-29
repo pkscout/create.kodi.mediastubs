@@ -1,3 +1,6 @@
+v.0.7.2
+- fix to get alternate air dates of web channels as well as networks
+
 v.0.7.1
 - better error handling when looking for alternate air dates
 

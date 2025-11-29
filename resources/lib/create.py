@@ -182,13 +182,20 @@ class Main:
             except KeyError:
                 self.LW.log( ['no valid show name and/or episode list, skipping'], 'info' )
                 continue
+            self.LW.log( ['got alternate lists of: ', alternatelists] )
             if alternatelists:
+                self.LW.log( ['got into alternate list logic'] )
                 for alist in alternatelists:
+                    if alist.get("network"):
+                        channel = 'network'
+                    else:
+                        channel = 'webChannel'
                     try:
-                      country_code = alist.get("network", {}).get("country", {}).get("code")
+                        country_code = alist.get(channel, {}).get("country", {}).get("code")
                     except AttributeError:
-                      continue
-                    if alist.get("network", {}).get("country", {}).get("code") == self.TVMAZE_ALTCOUNTRY:
+                        country_code = 'None'
+                    self.LW.log( ['got into alternate list loop with ' + country_code] )
+                    if country_code == self.TVMAZE_ALTCOUNTRY:
                         success, loglines, altepisodes = self.TVMAZE.getAlternateEpisodes( alist.get("id", 0) )
                         self.LW.log( loglines )
                         if success and altepisodes:
@@ -259,6 +266,7 @@ class Main:
             self.LW.log( ['checking for episode matches based on date of %s' % checkdate], 'info' )
         for episode in episodes:
             if self.ARGS.lookback:
+                self.LW.log( ['have an airdate to check of ' + episode.get( 'airdate' )] )
                 if not (episode.get( 'airdate' ) and episode.get( 'airdate' ) in checkdate):
                     continue
             if self.ARGS.seasons:
