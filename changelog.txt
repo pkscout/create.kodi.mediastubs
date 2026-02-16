@@ -1,3 +1,6 @@
+v.0.7.3
+- fix to ignore special episodes from TV Maze
+
 v.0.7.2
 - fix to get alternate air dates of web channels as well as networks
 
