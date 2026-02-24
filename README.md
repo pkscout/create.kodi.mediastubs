@@ -38,6 +38,9 @@ For functions requiring a TVMaze subscription, the TVMaze api key.
 * `tvmaze_altcountry = '<string>'` (default `'None'`)  
 Two letter country code to use to check for alternate air dates for that country.
 
+* `tvmaze_useworldwide = '<list>'` (default `'None'`)  
+A python list of show names that should use the world premiere instead of the country premiere set above.  Example `tvmaze_useworldwide=['Paradise']`
+
 * `tvmaze_wait = '<string>'` (default `'0.12'`)  
 Amount of time (in secs) to wait between calls to TVMaze (to stay under API limiting).
 

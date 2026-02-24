@@ -1,3 +1,6 @@
+v.0.7.4
+- added option to override country premiere option show by show
+
 v.0.7.3
 - fix to ignore special episodes from TV Maze
 

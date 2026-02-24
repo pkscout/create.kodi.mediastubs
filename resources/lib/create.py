@@ -54,6 +54,7 @@ class Main:
         self.DATAROOT = config.Get('rootpath')
         self.TVMAZEWAIT = config.Get('tvmaze_wait')
         self.TVMAZE_ALTCOUNTRY = config.Get('tvmaze_altcountry')
+        self.TVMAZE_USEWORLDWIDE = config.Get('tvmaze_useworldwide')
         self.SHOWURLS = config.Get('showurls')
         if self.DATAROOT:
             self.DATAROOT = osPathFromString(self.DATAROOT)
@@ -218,7 +219,7 @@ class Main:
                         country_code = 'None'
                     self.LW.log(
                         ['got into alternate list loop with ' + country_code])
-                    if country_code == self.TVMAZE_ALTCOUNTRY:
+                    if country_code == self.TVMAZE_ALTCOUNTRY and showname not in self.TVMAZE_USEWORLDWIDE:
                         success, loglines, altepisodes = self.TVMAZE.getAlternateEpisodes(
                             alist.get("id", 0))
                         self.LW.log(loglines)
